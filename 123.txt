@@ -1,0 +1,311 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+    int id;
+    char title[100];
+    int credit;
+} Course;
+
+typedef struct SinglyNode {
+    Course course;
+    struct SinglyNode* next;
+} SinglyNode;
+
+typedef struct DoublyNode {
+    Course course;
+    struct DoublyNode* prev;
+    struct DoublyNode* next;
+} DoublyNode;
+
+typedef struct {
+    SinglyNode* currentHead;
+    DoublyNode* completedHead;
+    int nextId;
+} CourseManager;
+
+CourseManager* initCourseManager() {
+    CourseManager* manager = (CourseManager*)malloc(sizeof(CourseManager));
+    manager->currentHead = NULL;
+    manager->completedHead = NULL;
+    manager->nextId = 1;
+    return manager;
+}
+
+void addCourse(CourseManager* manager) {
+    SinglyNode* newNode = (SinglyNode*)malloc(sizeof(SinglyNode));
+    newNode->next = NULL;
+    
+    newNode->course.id = manager->nextId++;
+    printf("Nhap ten khoa hoc: ");
+    getchar();
+    fgets(newNode->course.title, 100, stdin);
+    newNode->course.title[strcspn(newNode->course.title, "\n")] = 0;
+    printf("Nhap so tin chi: ");
+    scanf("%d", &newNode->course.credit);
+    
+    newNode->next = manager->currentHead;
+    manager->currentHead = newNode;
+    printf("Da them khoa hoc ID: %d\n", newNode->course.id);
+}
+
+void displayCourses(CourseManager* manager) {
+    printf("\nDanh sach khoa hoc dang hoc\n");
+    SinglyNode* current = manager->currentHead;
+    while (current != NULL) {
+        printf("ID: %d, Ten: %s, Tin chi: %d\n", 
+               current->course.id, current->course.title, current->course.credit);
+        current = current->next;
+    }
+    
+    printf("\nDanh sach khoa hoc da hoan thanh\n");
+    DoublyNode* completed = manager->completedHead;
+    while (completed != NULL) {
+        printf("ID: %d, Ten: %s, Tin chi: %d\n", 
+               completed->course.id, completed->course.title, completed->course.credit);
+        completed = completed->next;
+    }
+}
+
+void deleteCourse(CourseManager* manager, int id) {
+    SinglyNode* current = manager->currentHead;
+    SinglyNode* prev = NULL;
+    while (current != NULL && current->course.id != id) {
+        prev = current;
+        current = current->next;
+    }
+    if (current != NULL) {
+        if (prev == NULL) {
+            manager->currentHead = current->next;
+        } else {
+            prev->next = current->next;
+        }
+        free(current);
+        printf("Da xoa khoa hoc ID: %d\n", id);
+        return;
+    }
+    
+    DoublyNode* dCurrent = manager->completedHead;
+    while (dCurrent != NULL && dCurrent->course.id != id) {
+        dCurrent = dCurrent->next;
+    }
+    if (dCurrent != NULL) {
+        if (dCurrent->prev) {
+            dCurrent->prev->next = dCurrent->next;
+        } else {
+            manager->completedHead = dCurrent->next;
+        }
+        if (dCurrent->next) {
+            dCurrent->next->prev = dCurrent->prev;
+        }
+        free(dCurrent);
+        printf("Da xoa khoa hoc ID: %d\n", id);
+        return;
+    }
+    
+    printf("Khong tim thay khoa hoc ID: %d\n", id);
+}
+
+void updateCourse(CourseManager* manager, int id) {
+    SinglyNode* current = manager->currentHead;
+    while (current != NULL && current->course.id != id) {
+        current = current->next;
+    }
+    if (current != NULL) {
+        printf("Nhap ten khoa hoc moi: ");
+        getchar();
+        fgets(current->course.title, 100, stdin);
+        current->course.title[strcspn(current->course.title, "\n")] = 0;
+        printf("Nhap so tin chi moi: ");
+        scanf("%d", &current->course.credit);
+        printf("Da cap nhat khoa hoc ID: %d\n", id);
+        return;
+    }
+    
+    DoublyNode* dCurrent = manager->completedHead;
+    while (dCurrent != NULL && dCurrent->course.id != id) {
+        dCurrent = dCurrent->next;
+    }
+    if (dCurrent != NULL) {
+        printf("Nhap ten khoa hoc moi: ");
+        getchar();
+        fgets(dCurrent->course.title, 100, stdin);
+        dCurrent->course.title[strcspn(dCurrent->course.title, "\n")] = 0;
+        printf("Nhap so tin chi moi: ");
+        scanf("%d", &dCurrent->course.credit);
+        printf("Da cap nhat khoa hoc ID: %d\n", id);
+        return;
+    }
+    
+    printf("Khong tim thay khoa hoc ID: %d\n", id);
+}
+
+void markCompleted(CourseManager* manager, int id) {
+    SinglyNode* current = manager->currentHead;
+    SinglyNode* prev = NULL;
+    while (current != NULL && current->course.id != id) {
+        prev = current;
+        current = current->next;
+    }
+    if (current == NULL) {
+        printf("Khong tim thay khoa hoc ID: %d\n", id);
+        return;
+    }
+    
+    if (prev == NULL) {
+        manager->currentHead = current->next;
+    } else {
+        prev->next = current->next;
+    }
+    
+    DoublyNode* newNode = (DoublyNode*)malloc(sizeof(DoublyNode));
+    newNode->course = current->course;
+    newNode->prev = NULL;
+    newNode->next = manager->completedHead;
+    if (manager->completedHead) {
+        manager->completedHead->prev = newNode;
+    }
+    manager->completedHead = newNode;
+    
+    free(current);
+    printf("Da danh dau khoa hoc ID: %d la hoan thanh\n", id);
+}
+
+void sortCoursesByCredit(CourseManager* manager) {
+    if (manager->currentHead == NULL || manager->currentHead->next == NULL) {
+        return;
+    }
+    
+    SinglyNode* sorted = NULL;
+    SinglyNode* current = manager->currentHead;
+    
+    while (current != NULL) {
+        SinglyNode* next = current->next;
+        if (sorted == NULL || sorted->course.credit >= current->course.credit) {
+            current->next = sorted;
+            sorted = current;
+        } else {
+            SinglyNode* temp = sorted;
+            while (temp->next != NULL && temp->next->course.credit < current->course.credit) {
+                temp = temp->next;
+            }
+            current->next = temp->next;
+            temp->next = current;
+        }
+        current = next;
+    }
+    manager->currentHead = sorted;
+    printf("Da sap xep danh sach khoa hoc dang hoc theo tin chi\n");
+}
+
+void searchCourseByTitle(CourseManager* manager, char* title) {
+    printf("\nKet qua tim kiem: %s\n", title);
+    SinglyNode* current = manager->currentHead;
+    int found = 0;
+    while (current != NULL) {
+        if (strstr(current->course.title, title) != NULL) {
+            printf("ID: %d, Ten: %s, Tin chi: %d (Dang hoc)\n", 
+                   current->course.id, current->course.title, current->course.credit);
+            found = 1;
+        }
+        current = current->next;
+    }
+    
+    DoublyNode* dCurrent = manager->completedHead;
+    while (dCurrent != NULL) {
+        if (strstr(dCurrent->course.title, title) != NULL) {
+            printf("ID: %d, Ten: %s, Tin chi: %d (Da hoan thanh)\n", 
+                   dCurrent->course.id, dCurrent->course.title, dCurrent->course.credit);
+            found = 1;
+        }
+        dCurrent = dCurrent->next;
+    }
+    
+    if (!found) {
+        printf("Khong tim thay khoa hoc voi ten chua: %s\n", title);
+    }
+}
+
+void freeManager(CourseManager* manager) {
+    SinglyNode* current = manager->currentHead;
+    while (current != NULL) {
+        SinglyNode* temp = current;
+        current = current->next;
+        free(temp);
+    }
+    
+    DoublyNode* dCurrent = manager->completedHead;
+    while (dCurrent != NULL) {
+        DoublyNode* temp = dCurrent;
+        dCurrent = dCurrent->next;
+        free(temp);
+    }
+    
+    free(manager);
+}
+
+void printMenu() {
+    printf("\nQUAN LY KHOA HOC\n");
+    printf("1. Them khoa hoc\n");
+    printf("2. Hien thi danh sach khoa hoc\n");
+    printf("3. Xoa khoa hoc\n");
+    printf("4. Cap nhat khoa hoc\n");
+    printf("5. Danh dau khoa hoc da hoan thanh\n");
+    printf("6. Sap xep khoa hoc theo tin chi\n");
+    printf("7. Tim kiem khoa hoc theo ten\n");
+    printf("8. Thoat\n");
+    printf("Chon chuc nang: ");
+}
+
+int main() {
+    CourseManager* manager = initCourseManager();
+    int choice, id;
+    char title[100];
+    
+    while (1) {
+        printMenu();
+        scanf("%d", &choice);
+        
+        switch (choice) {
+            case 1:
+                addCourse(manager);
+                break;
+            case 2:
+                displayCourses(manager);
+                break;
+            case 3:
+                printf("Nhap ID khoa hoc can xoa: ");
+                scanf("%d", &id);
+                deleteCourse(manager, id);
+                break;
+            case 4:
+                printf("Nhap ID khoa hoc can cap nhat: ");
+                scanf("%d", &id);
+                updateCourse(manager, id);
+                break;
+            case 5:
+                printf("Nhap ID khoa hoc da hoan thanh: ");
+                scanf("%d", &id);
+                markCompleted(manager, id);
+                break;
+            case 6:
+                sortCoursesByCredit(manager);
+                break;
+            case 7:
+                printf("Nhap ten khoa hoc can tim: ");
+                getchar();
+                fgets(title, 100, stdin);
+                title[strcspn(title, "\n")] = 0;
+                searchCourseByTitle(manager, title);
+                break;
+            case 8:
+                freeManager(manager);
+                printf("Da thoat chuong trinh\n");
+                return 0;
+            default:
+                printf("Lua chon khong hop le\n");
+        }
+    }
+    return 0;
+}
